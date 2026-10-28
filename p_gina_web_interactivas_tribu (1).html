@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRIBU - Experiencia Social & Gastronómica</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,800;1,400&display=swap" rel="stylesheet">
+    
+    <!-- Firebase Script & Database Integration -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Configuración de la Base de Datos integrada (Firebase / Firestore)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'tribu-app-photos-v1';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' 
+            ? JSON.parse(__firebase_config) 
+            : {
+                // Configuración de respaldo/desarrollo
+                apiKey: "AIzaSyDemoKeyTribuLiveDatabase2026",
+                authDomain: "tribu-app-photos.firebaseapp.com",
+                projectId: "tribu-app-photos",
+                storageBucket: "tribu-app-photos.appspot.com",
+                messagingSenderId: "123456789",
+                appId: "1:123456789:web:tribuapp"
+            };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Exponer la Base de Datos globalmente
+        window.tribuDB = { db, collection, doc, addDoc, updateDoc, onSnapshot, appId };
+
+        // Inicialización y autenticación automática en la BD
+        async function initDatabaseAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                console.log("🔥 Base de Datos TRIBU Conectada Exitosamente.");
+                if (window.initRealtimePhotosListener) {
+                    window.initRealtimePhotosListener();
+                }
+            } catch (err) {
+                console.warn("Conexión con autenticación de respaldo activa:", err);
+                if (window.initRealtimePhotosListener) {
+                    window.initRealtimePhotosListener();
+                }
+            }
+        }
+        initDatabaseAuth();
+    </script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        tribu: {
+                            50: '#fdf8f5',
+                            100: '#f7ebd8',
+                            200: '#edd5b3',
+                            300: '#dfb987',
+                            400: '#d09758',
+                            500: '#c27933',
+                            600: '#a65b27',
+                            700: '#864323',
+                            800: '#6d3622',
+                            900: '#592e1e',
+                            950: '#31160d',
+                        },
+                        amberWood: '#2A1A12',
+                        rusticGold: '#D4A359',
+                        warmSand: '#F4EAE1',
+                        fireOrange: '#E05A2B',
+                    },
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        serif: ['"Playfair Display"', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #2A1A12;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #864323;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #c27933;
+        }
+        
+        .bg-pattern {
+            background-color: #1a0f0a;
+            background-image: radial-gradient(#6d3622 0.75px, transparent 0.75px), radial-gradient(#6d3622 0.75px, #1a0f0a 0.75px);
+            background-size: 30px 30px;
+            background-position: 0 0,15px 15px;
+        }
+
+        .glass-card {
+            background: rgba(42, 26, 18, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(212, 163, 89, 0.15);
+        }
+
+        .tab-btn.active {
+            background-color: #864323;
+            color: #ffffff;
+            border-color: #D4A359;
+        }
+    </style>
+</head>
+<body class="bg-pattern text-tribu-100 font-sans antialiased min-h-screen flex flex-col selection:bg-tribu-600 selection:text-white">
+
+    <!-- Header / Nav -->
+    <header class="sticky top-0 z-50 glass-card border-b border-tribu-800/50 shadow-2xl">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Logo -->
+            <a href="#" class="flex items-center gap-3 group">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-tribu-500 to-tribu-800 flex items-center justify-center border-2 border-rusticGold shadow-lg group-hover:scale-105 transition-transform duration-300">
+                    <i class="fa-solid font-bold text-2xl text-warmSand fa-fire"></i>
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-serif text-2xl font-black tracking-widest text-warmSand group-hover:text-rusticGold transition-colors">TRIBU</span>
+                    <span class="text-[10px] tracking-widest uppercase text-tribu-300 font-medium">Refugio & Encuentro</span>
+                </div>
+            </a>
+
+            <!-- Desktop Nav -->
+            <nav class="hidden md:flex items-center space-x-8 font-medium text-sm">
+                <a href="#galeria" class="text-rusticGold font-semibold border-b-2 border-rusticGold pb-1">Muro de Fotos TRIBU</a>
+            </nav>
+
+            <!-- Actions -->
+            <div class="hidden sm:flex items-center gap-3">
+                <div id="db-status-badge" class="flex items-center gap-2 bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 px-3 py-1.5 rounded-full text-xs font-semibold">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Base de Datos Activa</span>
+                </div>
+                <button onclick="openUploadModal(true)" class="bg-rusticGold/20 hover:bg-rusticGold/30 text-rusticGold border border-rusticGold/50 px-4 py-2 rounded-full text-xs font-bold flex items-center gap-1.5 transition-all">
+                    <i class="fa-solid fa-camera-retro text-xs"></i> Modo Fotógrafo
+                </button>
+                <button onclick="openUploadModal(false)" class="bg-gradient-to-r from-fireOrange to-tribu-600 hover:from-tribu-600 hover:to-fireOrange text-white font-bold px-5 py-2 rounded-full text-xs shadow-md transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Subir Mi Foto
+                </button>
+            </div>
+
+            <!-- Mobile Menu Toggle -->
+            <button id="mobile-menu-btn" class="md:hidden text-tribu-200 hover:text-white p-2">
+                <i class="fa-solid fa-bars text-2xl"></i>
+            </button>
+        </div>
+
+        <!-- Mobile Menu Dropdown -->
+        <div id="mobile-menu" class="hidden md:hidden glass-card border-b border-tribu-800 px-6 py-4 space-y-3">
+            <div class="flex flex-col gap-2 pt-1">
+                <button onclick="openUploadModal(false)" class="w-full bg-tribu-800 text-warmSand border border-rusticGold/40 py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-camera"></i> Subir Mi Foto
+                </button>
+                <button onclick="openUploadModal(true)" class="w-full bg-rusticGold/20 text-rusticGold border border-rusticGold/50 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-camera-retro"></i> Subir Foto Oficial del Día
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero Section / Header Banner -->
+    <section class="relative py-16 md:py-24 overflow-hidden flex items-center justify-center bg-tribu-950 border-b border-tribu-900">
+        <!-- Hero Background Overlay -->
+        <div class="absolute inset-0 z-0">
+            <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80" class="w-full h-full object-cover opacity-25 filter blur-[2px] scale-105" alt="Tribu Ambiente">
+            <div class="absolute inset-0 bg-gradient-to-t from-tribu-950 via-tribu-950/80 to-tribu-950/60"></div>
+        </div>
+
+        <div class="relative z-10 max-w-4xl mx-auto px-4 text-center space-y-6">
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card border border-rusticGold/30 text-rusticGold text-xs uppercase tracking-widest font-semibold">
+                <i class="fa-solid fa-camera text-fireOrange"></i> Muro de Galería en Vivo
+            </div>
+
+            <h1 class="font-serif text-4xl sm:text-6xl font-bold tracking-tight text-warmSand leading-tight">
+                Las fotos de hoy en <span class="text-transparent bg-clip-text bg-gradient-to-r from-rusticGold via-tribu-400 to-fireOrange">TRIBU</span>
+            </h1>
+
+            <p class="text-tribu-200 text-base sm:text-lg max-w-2xl mx-auto font-light leading-relaxed">
+                Revive las fotos tomadas hoy en el local por nuestro fotógrafo oficial y las capturas compartidas por la gente pasando el rato alrededor del fogón, karaoke, barra y sala gamer.
+            </p>
+
+            <div class="flex flex-wrap items-center justify-center gap-4 pt-2">
+                <button onclick="openUploadModal(false)" class="bg-gradient-to-r from-fireOrange to-tribu-600 hover:from-tribu-600 hover:to-fireOrange text-white font-bold px-8 py-3.5 rounded-full text-xs uppercase tracking-wider shadow-xl flex items-center gap-2 transition-all transform hover:-translate-y-0.5">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Compartir Mi Foto
+                </button>
+                <button onclick="openUploadModal(true)" class="glass-card hover:bg-rusticGold/20 text-rusticGold border border-rusticGold/50 px-8 py-3.5 rounded-full text-xs uppercase tracking-wider font-bold transition-all flex items-center gap-2">
+                    <i class="fa-solid fa-camera-retro"></i> Modo Fotógrafo Oficial
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Live Gallery Section -->
+    <section id="galeria" class="py-12 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 border-b border-tribu-800/80 pb-6">
+                <div>
+                    <span class="text-rusticGold text-xs uppercase font-bold tracking-widest">Fotografías del Día</span>
+                    <h2 class="font-serif text-2xl sm:text-4xl font-bold text-warmSand mt-1">Explorar Momentos</h2>
+                </div>
+
+                <!-- Gallery Upload Actions -->
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-tribu-300 font-medium">Fotos públicas: <strong id="count-all" class="text-rusticGold font-bold">0</strong></span>
+                </div>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div class="flex items-center gap-2 overflow-x-auto pb-4 mb-8 scrollbar-none">
+                <button onclick="filterGallery('all')" class="tab-btn active px-5 py-2.5 rounded-full text-xs font-semibold whitespace-nowrap border border-tribu-700 transition-all">
+                    Todas las Fotos
+                </button>
+                <button onclick="filterGallery('official')" class="tab-btn px-5 py-2.5 rounded-full text-xs font-semibold whitespace-nowrap border border-tribu-800 text-tribu-300 hover:text-white transition-all">
+                    📸 Fotógrafo Oficial
+                </button>
+                <button onclick="filterGallery('fogon')" class="tab-btn px-5 py-2.5 rounded-full text-xs font-semibold whitespace-nowrap border border-tribu-800 text-tribu-300 hover:text-white transition-all">
+                    🔥 Fogón & Té
+                </button>
+                <button onclick="filterGallery('karaoke')" class="tab-btn px-5 py-2.5 rounded-full text-xs font-semibold whitespace-nowrap border border-tribu-800 text-tribu-300 hover:text-white transition-all">
+                    🎤 Karaoke & Salón
+                </button>
+                <button onclick="filterGallery('banos')" class="tab-btn px-5 py-2.5 rounded-full text-xs font-semibold whitespace-nowrap border border-tribu-800 text-tribu-300 hover:text-white transition-all">
+                    ✨ Baños Estéticos
+                </button>
+                <button onclick="filterGallery('gamer')" class="tab-btn px-5 py-2.5 rounded-full text-xs font-semibold whitespace-nowrap border border-tribu-800 text-tribu-300 hover:text-white transition-all">
+                    🎮 Sala Gamer
+                </button>
+            </div>
+
+            <!-- Photos Grid -->
+            <div id="gallery-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Dynamic cards rendered via JavaScript -->
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-tribu-950 border-t border-tribu-900 py-8 text-tribu-400 text-xs mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-full bg-tribu-800 flex items-center justify-center text-rusticGold font-bold border border-rusticGold/30">
+                    <i class="fa-solid fa-camera"></i>
+                </div>
+                <div>
+                    <span class="font-serif text-base font-bold text-warmSand tracking-wider block">TRIBU</span>
+                    <span class="text-[10px] text-tribu-400">Muro & Fotos de la Comunidad</span>
+                </div>
+            </div>
+
+            <div class="text-center sm:text-right text-tribu-400">
+                <p>&copy; 2026 TRIBU. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- LIGHTBOX / FULLSCREEN IMAGE VIEWER MODAL -->
+    <div id="view-photo-modal" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md hidden flex items-center justify-center p-4">
+        <button onclick="closePhotoModal()" class="absolute top-6 right-6 text-white/80 hover:text-white text-3xl z-10 bg-tribu-950/60 w-12 h-12 rounded-full flex items-center justify-center border border-rusticGold/40 transition-colors">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
+
+        <div class="glass-card max-w-4xl w-full rounded-3xl overflow-hidden border border-rusticGold/40 flex flex-col md:flex-row shadow-2xl max-h-[90vh]">
+            <div class="md:w-3/5 bg-black flex items-center justify-center relative overflow-hidden group">
+                <img id="lightbox-img" src="" class="max-h-[70vh] md:max-h-[85vh] w-full object-contain" alt="Foto Ampliada">
+            </div>
+
+            <div class="md:w-2/5 p-6 flex flex-col justify-between bg-tribu-950 border-t md:border-t-0 md:border-l border-tribu-800">
+                <div>
+                    <!-- User details -->
+                    <div class="flex items-center gap-3 pb-4 border-b border-tribu-800">
+                        <img id="lightbox-avatar" src="" class="w-10 h-10 rounded-full border border-rusticGold/50 object-cover" alt="Avatar">
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <h4 id="lightbox-author" class="text-sm font-bold text-warmSand"></h4>
+                                <span id="lightbox-badge"></span>
+                            </div>
+                            <span id="lightbox-time" class="text-xs text-tribu-400"></span>
+                        </div>
+                    </div>
+
+                    <!-- Caption -->
+                    <div class="py-4">
+                        <p id="lightbox-caption" class="text-sm text-tribu-200 leading-relaxed font-light"></p>
+                    </div>
+
+                    <!-- Comments area in Lightbox -->
+                    <div class="border-t border-tribu-800/80 pt-4 space-y-3">
+                        <span class="text-xs uppercase font-bold text-rusticGold tracking-wider block">Comentarios</span>
+                        <div id="lightbox-comments-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
+                            <!-- Comments injected here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-4 border-t border-tribu-800 space-y-3">
+                    <div class="flex gap-2">
+                        <input type="text" id="lightbox-input-comment" placeholder="Añadir comentario..." class="w-full bg-tribu-900 border border-tribu-800 rounded-xl px-3 py-2 text-xs text-warmSand focus:outline-none focus:border-rusticGold">
+                        <button onclick="addLightboxComment()" class="bg-rusticGold text-amberWood font-bold px-4 py-2 rounded-xl text-xs hover:bg-rusticGold/90 transition-colors">Comentar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UPLOAD PHOTO MODAL (CLIENT & PHOTOGRAPHER) -->
+    <div id="upload-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="glass-card max-w-lg w-full rounded-3xl p-6 sm:p-8 border border-rusticGold/40 relative shadow-2xl">
+            <button onclick="closeUploadModal()" class="absolute top-4 right-4 text-tribu-400 hover:text-white text-xl">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="text-center space-y-2 mb-6">
+                <div class="w-12 h-12 bg-tribu-800/80 rounded-full flex items-center justify-center text-rusticGold mx-auto text-xl border border-rusticGold/30" id="modal-icon">
+                    <i class="fa-solid fa-camera"></i>
+                </div>
+                <h3 class="font-serif text-2xl font-bold text-warmSand" id="modal-title">Subir Foto a Tribu</h3>
+                <p class="text-tribu-300 text-xs" id="modal-desc">Comparte las fotos del día en el local para que toda la comunidad las vea.</p>
+            </div>
+
+            <form id="upload-form" onsubmit="handlePhotoUpload(event)" class="space-y-4">
+                <input type="hidden" id="is-official-upload" value="false">
+
+                <div>
+                    <label class="block text-xs font-semibold text-tribu-200 mb-1 uppercase">Autor / Nombre</label>
+                    <input type="text" id="photo-user" required placeholder="Ej. @lucia_tribu o Fotógrafo Oficial" class="w-full bg-tribu-950 border border-tribu-800 rounded-xl px-4 py-2.5 text-sm text-warmSand focus:outline-none focus:border-rusticGold">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-tribu-200 mb-1 uppercase">Sector de la foto</label>
+                    <select id="photo-category" required class="w-full bg-tribu-950 border border-tribu-800 rounded-xl px-4 py-2.5 text-sm text-warmSand focus:outline-none focus:border-rusticGold">
+                        <option value="fogon">🔥 Fogón Exterior & Infusiones</option>
+                        <option value="karaoke">🎤 Karaoke & Escenario</option>
+                        <option value="banos">✨ Baños Estéticos</option>
+                        <option value="gamer">🎮 Sala Gamer</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-tribu-200 mb-1 uppercase">Seleccionar Imagen</label>
+                    <div id="drop-area" onclick="document.getElementById('photo-file').click()" class="border-2 border-dashed border-tribu-700 hover:border-rusticGold rounded-2xl p-6 text-center cursor-pointer transition-colors bg-tribu-950/50">
+                        <i class="fa-solid fa-image text-3xl text-tribu-400 mb-2"></i>
+                        <p class="text-xs text-tribu-300 font-medium">Clic para elegir foto de tu dispositivo</p>
+                        <p class="text-[10px] text-tribu-500 mt-1">Soporta JPG, PNG, WEBP</p>
+                        <input type="file" id="photo-file" accept="image/*" class="hidden" onchange="previewSelectedImage(event)">
+                    </div>
+                </div>
+
+                <!-- Preview Box -->
+                <div id="image-preview-container" class="hidden relative rounded-xl overflow-hidden h-40 border border-rusticGold/30">
+                    <img id="image-preview" src="" class="w-full h-full object-cover" alt="Vista previa">
+                    <span class="absolute bottom-2 left-2 bg-tribu-950/80 text-[10px] px-2 py-1 rounded text-rusticGold font-mono">Vista Previa</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-tribu-200 mb-1 uppercase">Pie de foto / Comentario</label>
+                    <input type="text" id="photo-caption" placeholder="Ej. Una noche espectacular alrededor del fogón 🔥" class="w-full bg-tribu-950 border border-tribu-800 rounded-xl px-4 py-2.5 text-sm text-warmSand focus:outline-none focus:border-rusticGold">
+                </div>
+
+                <button type="submit" class="w-full bg-rusticGold hover:bg-rusticGold/90 text-amberWood font-bold py-3.5 rounded-xl text-xs uppercase tracking-wider transition-all mt-2">
+                    Publicar Foto en el Muro
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 z-50 glass-card border border-rusticGold/50 text-warmSand px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 transform translate-y-32 opacity-0 transition-all duration-300">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-rusticGold text-xl"></i>
+        <div>
+            <h5 id="toast-title" class="font-bold text-xs uppercase tracking-wider text-warmSand">Notificación</h5>
+            <p id="toast-msg" class="text-xs text-tribu-200">Operación realizada con éxito.</p>
+        </div>
+    </div>
+
+    <script>
+        // Imágenes iniciales por defecto si la base de datos está vacía
+        const imgKaraoke = "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=800&q=80";
+        const imgFogon = "https://images.unsplash.com/photo-1543007630-9710e4a00a20?auto=format&fit=crop&w=800&q=80";
+        const imgBanos = "https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80";
+        const imgGamer = "https://images.unsplash.com/photo-1538481199705-c710c4e965fc?auto=format&fit=crop&w=800&q=80";
+
+        const initialGalleryPhotos = [
+            {
+                id: 'img-1',
+                category: 'karaoke',
+                isOfficial: true,
+                src: imgKaraoke,
+                author: 'Fotógrafo Oficial TRIBU',
+                avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+                caption: 'Noche llena en TRIBU: Hamburguesas artesanales, barra con letrero de neón y shows de Karaoke en vivo 🎤🍺',
+                likes: 245,
+                commentsCount: 2,
+                time: 'Hoy - 22:30 hs',
+                comments: ['El ambiente rústico con luces cálidas está tremendo!', '¡Excelente las hamburguesas y el karaoke!']
+            },
+            {
+                id: 'img-2',
+                category: 'fogon',
+                isOfficial: true,
+                src: imgFogon,
+                author: 'Fotógrafo Oficial TRIBU',
+                avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+                caption: 'Fogón al aire libre y barra rústica de té e infusiones orgánicas bajo las guirnaldas de luces 🔥☕',
+                likes: 312,
+                commentsCount: 2,
+                time: 'Hoy - 21:15 hs',
+                comments: ['Me encanta pasar el rato en el fogón con amigos', 'Esa barra de infusiones es ideal']
+            },
+            {
+                id: 'img-3',
+                category: 'banos',
+                isOfficial: false,
+                src: imgBanos,
+                author: '@valen_tribu',
+                avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80',
+                caption: 'Selfie en el espejo con luces LED y plantas de los Baños Estéticos de TRIBU ✨🌿',
+                likes: 178,
+                commentsCount: 2,
+                time: 'Hace 1 hora',
+                comments: ['Literalmente los mejores baños estéticos 😍', 'La luz es genial para fotos']
+            },
+            {
+                id: 'img-4',
+                category: 'gamer',
+                isOfficial: true,
+                src: imgGamer,
+                author: 'Fotógrafo Oficial TRIBU',
+                avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80',
+                caption: 'Partidas intensas y la zona de productos en la Sala Gamer de TRIBU 🎮🔥',
+                likes: 129,
+                commentsCount: 1,
+                time: 'Hace 3 horas',
+                comments: ['El torneo de hoy estuvo muy bueno!']
+            }
+        ];
+
+        let galleryData = [...initialGalleryPhotos];
+        let currentFilter = 'all';
+        let currentActivePhotoId = null;
+
+        // Helper function for category badges
+        function getCategoryBadgeLabel(category) {
+            switch(category) {
+                case 'fogon': return '🔥 Fogón & Té';
+                case 'karaoke': return '🎤 Karaoke & Salón';
+                case 'banos': return '✨ Baños Estéticos';
+                case 'gamer': return '🎮 Sala Gamer';
+                default: return '📍 TRIBU';
+            }
+        }
+
+        // Filter handler
+        function filterGallery(category) {
+            currentFilter = category;
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            renderGallery();
+        }
+
+        // Open comment section on card
+        function openCommentSection(photoId) {
+            const box = document.getElementById(`comments-box-${photoId}`);
+            if (box) {
+                box.classList.toggle('hidden');
+            }
+        }
+
+        // Preview image selection
+        let tempImageBase64 = null;
+        function previewSelectedImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    tempImageBase64 = e.target.result;
+                    document.getElementById('image-preview').src = tempImageBase64;
+                    document.getElementById('image-preview-container').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Lightbox Modal functions
+        function openPhotoModal(photoId) {
+            const photo = galleryData.find(p => p.id === photoId);
+            if (!photo) return;
+
+            currentActivePhotoId = photoId;
+            document.getElementById('lightbox-img').src = photo.src;
+            document.getElementById('lightbox-avatar').src = photo.avatar;
+            document.getElementById('lightbox-author').innerText = photo.author;
+            document.getElementById('lightbox-time').innerText = photo.time;
+            document.getElementById('lightbox-caption').innerText = photo.caption;
+            
+            const badge = document.getElementById('lightbox-badge');
+            if (photo.isOfficial) {
+                badge.innerHTML = '<i class="fa-solid fa-circle-check text-rusticGold text-xs" title="Fotógrafo Oficial"></i>';
+            } else {
+                badge.innerHTML = `<span class="text-[10px] bg-tribu-900 border border-tribu-800 text-tribu-300 px-2 py-0.5 rounded-full">${getCategoryBadgeLabel(photo.category)}</span>`;
+            }
+
+            renderLightboxComments(photo);
+            document.getElementById('view-photo-modal').classList.remove('hidden');
+        }
+
+        function closePhotoModal() {
+            document.getElementById('view-photo-modal').classList.add('hidden');
+            currentActivePhotoId = null;
+        }
+
+        function renderLightboxComments(photo) {
+            const list = document.getElementById('lightbox-comments-list');
+            list.innerHTML = '';
+            if (!photo.comments || photo.comments.length === 0) {
+                list.innerHTML = '<p class="text-xs text-tribu-400 italic">Sé el primero en comentar esta foto.</p>';
+                return;
+            }
+            photo.comments.forEach(c => {
+                const p = document.createElement('p');
+                p.className = 'text-xs text-tribu-200 bg-tribu-900/60 p-2 rounded-lg border border-tribu-800/40';
+                p.innerHTML = `<span class="text-warmSand font-semibold">Comunidad:</span> ${c}`;
+                list.appendChild(p);
+            });
+        }
+
+        async function addLightboxComment() {
+            if (!currentActivePhotoId) return;
+            const input = document.getElementById('lightbox-input-comment');
+            const text = input.value.trim();
+            if (!text) return;
+
+            const photo = galleryData.find(p => p.id === currentActivePhotoId);
+            if (!photo) return;
+
+            if (!photo.comments) photo.comments = [];
+            photo.comments.push(text);
+            input.value = '';
+
+            renderLightboxComments(photo);
+            renderGallery();
+
+            if (window.tribuDB) {
+                const { db, doc, updateDoc, appId } = window.tribuDB;
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'photos', currentActivePhotoId);
+                    await updateDoc(docRef, { comments: photo.comments });
+                } catch (e) {
+                    console.log("Guardado local");
+                }
+            }
+        }
+
+        // Conectar a la Base de Datos para sincronizar fotos en tiempo real
+        window.initRealtimePhotosListener = function() {
+            if (!window.tribuDB) return;
+            const { db, collection, onSnapshot, appId } = window.tribuDB;
+            const photosCol = collection(db, 'artifacts', appId, 'public', 'data', 'photos');
+
+            // Escuchar cambios en la base de datos pública
+            onSnapshot(photosCol, (snapshot) => {
+                const dbPhotos = [];
+                snapshot.forEach(docSnap => {
+                    dbPhotos.push({ id: docSnap.id, ...docSnap.data() });
+                });
+
+                if (dbPhotos.length > 0) {
+                    // Ordenar por marca de tiempo más reciente primero
+                    dbPhotos.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    galleryData = dbPhotos;
+                    renderGallery();
+                } else {
+                    // Cargar fotos iniciales si la base de datos está vacía
+                    galleryData = [...initialGalleryPhotos];
+                    renderGallery();
+                }
+
+                const statusBadge = document.getElementById('db-status-badge');
+                if (statusBadge) {
+                    statusBadge.className = "flex items-center gap-2 bg-emerald-950/60 text-emerald-400 border border-emerald-800/60 px-3 py-1.5 rounded-full text-xs font-semibold";
+                    statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span><span>BD Sincronizada (' + galleryData.length + ' fotos)</span>';
+                }
+            }, (error) => {
+                console.error("Modo local activo:", error);
+                const statusBadge = document.getElementById('db-status-badge');
+                if (statusBadge) {
+                    statusBadge.className = "flex items-center gap-2 bg-amber-950/60 text-amber-400 border border-amber-800/60 px-3 py-1.5 rounded-full text-xs font-semibold";
+                    statusBadge.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400"></span><span>Modo Guardado Local</span>';
+                }
+                renderGallery();
+            });
+        };
+
+        // Render Gallery Photos
+        function renderGallery() {
+            const grid = document.getElementById('gallery-grid');
+            grid.innerHTML = '';
+
+            let filtered = galleryData;
+            if (currentFilter === 'official') {
+                filtered = galleryData.filter(item => item.isOfficial);
+            } else if (currentFilter !== 'all') {
+                filtered = galleryData.filter(item => item.category === currentFilter);
+            }
+
+            document.getElementById('count-all').innerText = galleryData.length;
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="col-span-full py-12 text-center text-tribu-400 glass-card rounded-3xl">
+                        <i class="fa-solid fa-camera-retro text-4xl mb-3 text-tribu-600"></i>
+                        <p class="text-sm font-medium">Aún no hay fotos en esta categoría.</p>
+                        <button onclick="openUploadModal(false)" class="mt-4 bg-tribu-700 text-warmSand px-4 py-2 rounded-xl text-xs font-semibold">
+                            Subir la primera foto
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            filtered.forEach(photo => {
+                const card = document.createElement('div');
+                card.className = 'glass-card rounded-3xl overflow-hidden border border-tribu-800/80 hover:border-rusticGold/50 transition-all duration-300 flex flex-col justify-between group shadow-lg';
+                card.innerHTML = `
+                    <div>
+                        <!-- Header Author -->
+                        <div class="p-4 flex items-center justify-between border-b border-tribu-800/50">
+                            <div class="flex items-center gap-3">
+                                <img src="${photo.avatar}" class="w-8 h-8 rounded-full border border-rusticGold/40 object-cover" alt="${photo.author}">
+                                <div>
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="text-xs font-bold text-warmSand">${photo.author}</span>
+                                        ${photo.isOfficial ? '<i class="fa-solid fa-circle-check text-rusticGold text-[11px]" title="Fotógrafo Oficial"></i>' : ''}
+                                    </div>
+                                    <span class="text-[10px] text-tribu-400">${photo.time}</span>
+                                </div>
+                            </div>
+                            <span class="text-[10px] uppercase tracking-wider font-semibold px-2.5 py-1 rounded-full ${photo.isOfficial ? 'bg-rusticGold/20 border border-rusticGold/50 text-rusticGold' : 'bg-tribu-900 border border-tribu-800 text-tribu-300'}">
+                                ${photo.isOfficial ? '📸 Foto del Día' : getCategoryBadgeLabel(photo.category)}
+                            </span>
+                        </div>
+
+                        <!-- Image Container with Click to Expand -->
+                        <div onclick="openPhotoModal('${photo.id}')" class="relative h-64 overflow-hidden bg-tribu-950 cursor-pointer">
+                            <img src="${photo.src}" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="Foto de Tribu">
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white font-medium text-xs gap-2">
+                                <i class="fa-solid fa-expand text-lg text-rusticGold"></i> Ver Foto Completa
+                            </div>
+                        </div>
+
+                        <!-- Caption -->
+                        <div class="p-4 space-y-2">
+                            <p class="text-xs text-tribu-200 font-light leading-relaxed">${photo.caption}</p>
+                        </div>
+                    </div>
+
+                    <!-- Interactions Bar -->
+                    <div class="p-4 pt-0 border-t border-tribu-800/40 flex items-center justify-between text-xs mt-2">
+                        <button onclick="toggleLike('${photo.id}')" class="flex items-center gap-1.5 text-tribu-300 hover:text-fireOrange transition-colors">
+                            <i class="fa-solid fa-heart ${photo.liked ? 'text-fireOrange' : ''}"></i>
+                            <span class="font-semibold" id="likes-count-${photo.id}">${photo.likes || 0}</span>
+                        </button>
+
+                        <button onclick="openCommentSection('${photo.id}')" class="flex items-center gap-1.5 text-tribu-300 hover:text-rusticGold transition-colors">
+                            <i class="fa-regular fa-comment"></i>
+                            <span class="font-semibold">${photo.comments ? photo.comments.length : 0} comentarios</span>
+                        </button>
+                    </div>
+
+                    <!-- Comments Box -->
+                    <div id="comments-box-${photo.id}" class="hidden p-4 pt-0 border-t border-tribu-800/40 text-xs space-y-2 bg-tribu-950/40">
+                        <div class="space-y-1 max-h-28 overflow-y-auto pr-1 pt-2" id="comment-list-${photo.id}">
+                            ${(photo.comments || []).map(c => `<p class="text-[11px] text-tribu-300"><span class="text-warmSand font-semibold">Comunidad:</span> ${c}</p>`).join('')}
+                        </div>
+                        <div class="flex gap-2 pt-2">
+                            <input type="text" id="input-comment-${photo.id}" placeholder="Escribe un comentario..." class="w-full bg-tribu-900 border border-tribu-800 rounded-lg px-2.5 py-1.5 text-[11px] text-warmSand focus:outline-none focus:border-rusticGold">
+                            <button onclick="addComment('${photo.id}')" class="bg-tribu-700 hover:bg-tribu-600 px-3 py-1.5 rounded-lg text-warmSand text-[11px] font-bold">Enviar</button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        async function toggleLike(photoId) {
+            const photo = galleryData.find(p => p.id === photoId);
+            if (!photo) return;
+
+            const newLikes = photo.liked ? (photo.likes - 1) : (photo.likes + 1);
+            const newLikedState = !photo.liked;
+
+            photo.likes = newLikes;
+            photo.liked = newLikedState;
+            renderGallery();
+
+            if (window.tribuDB) {
+                const { db, doc, updateDoc, appId } = window.tribuDB;
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'photos', photoId);
+                    await updateDoc(docRef, { likes: newLikes });
+                } catch (e) {
+                    console.log("Guardado local");
+                }
+            }
+        }
+
+        async function addComment(photoId) {
+            const input = document.getElementById(`input-comment-${photoId}`);
+            const text = input.value.trim();
+            if (!text) return;
+
+            const photo = galleryData.find(p => p.id === photoId);
+            if (!photo) return;
+
+            if (!photo.comments) photo.comments = [];
+            photo.comments.push(text);
+            input.value = '';
+            renderGallery();
+
+            if (window.tribuDB) {
+                const { db, doc, updateDoc, appId } = window.tribuDB;
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'photos', photoId);
+                    await updateDoc(docRef, { comments: photo.comments });
+                } catch (e) {
+                    console.log("Guardado local");
+                }
+            }
+            showToast('Comentario enviado', 'Tu mensaje ha sido agregado a la foto.');
+        }
+
+        async function handlePhotoUpload(e) {
+            e.preventDefault();
+            const user = document.getElementById('photo-user').value.trim();
+            const category = document.getElementById('photo-category').value;
+            const caption = document.getElementById('photo-caption').value.trim();
+            const isOfficial = document.getElementById('is-official-upload').value === 'true';
+
+            if (!tempImageBase64) {
+                showToast('Selecciona una imagen', 'Por favor selecciona o adjunta una foto para publicar.', 'error');
+                return;
+            }
+
+            const authorName = isOfficial ? 'Fotógrafo Oficial TRIBU' : (user.startsWith('@') ? user : '@' + user);
+            const initialLetter = user.replace('@', '').charAt(0).toUpperCase() || 'T';
+
+            const newPhotoData = {
+                category: category,
+                isOfficial: isOfficial,
+                src: tempImageBase64,
+                author: authorName,
+                avatar: isOfficial ? 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80' : `https://placehold.co/100x100/6d3622/ffffff?text=${initialLetter}`,
+                caption: caption || 'Disfrutando el momento en TRIBU 🔥',
+                likes: 1,
+                comments: [],
+                time: 'Hace un instante',
+                createdAt: Date.now()
+            };
+
+            // Guardar en la Base de Datos de Firestore
+            if (window.tribuDB) {
+                const { db, collection, addDoc, appId } = window.tribuDB;
+                try {
+                    const photosCol = collection(db, 'artifacts', appId, 'public', 'data', 'photos');
+                    await addDoc(photosCol, newPhotoData);
+                } catch (err) {
+                    console.error("Error guardando imagen en DB:", err);
+                    galleryData.unshift({ id: 'local-' + Date.now(), ...newPhotoData });
+                    renderGallery();
+                }
+            } else {
+                galleryData.unshift({ id: 'local-' + Date.now(), ...newPhotoData });
+                renderGallery();
+            }
+
+            currentFilter = 'all';
+            document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+                if (idx === 0) btn.classList.add('active');
+                else btn.classList.remove('active');
+            });
+
+            closeUploadModal();
+            showToast('¡Foto guardada en la BD!', 'La fotografía se ha registrado en la carpeta/base de datos y ya se puede ver en el muro.');
+
+            // Reset form
+            document.getElementById('upload-form').reset();
+            document.getElementById('image-preview-container').classList.add('hidden');
+            tempImageBase64 = null;
+        }
+
+        function openUploadModal(isOfficial = false) {
+            document.getElementById('is-official-upload').value = isOfficial ? 'true' : 'false';
+            
+            const title = document.getElementById('modal-title');
+            const desc = document.getElementById('modal-desc');
+            const userInput = document.getElementById('photo-user');
+
+            if (isOfficial) {
+                title.innerText = 'Subir Foto Oficial del Día';
+                desc.innerText = 'Modo Fotógrafo: Sube las fotos de la jornada para la comunidad.';
+                userInput.value = 'Fotógrafo Oficial TRIBU';
+            } else {
+                title.innerText = 'Subir Tu Foto a Tribu';
+                desc.innerText = 'Comparte cómo la pasaste hoy en el local con tus amigos.';
+                userInput.value = '';
+            }
+
+            document.getElementById('upload-modal').classList.remove('hidden');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('upload-modal').classList.add('hidden');
+        }
+
+        function showToast(title, msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-title').innerText = title;
+            document.getElementById('toast-msg').innerText = msg;
+            document.getElementById('toast-icon').className = type === 'error' ? 'fa-solid fa-circle-exclamation text-red-500 text-xl' : 'fa-solid fa-circle-check text-rusticGold text-xl';
+
+            toast.classList.remove('translate-y-32', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-32', 'opacity-0');
+            }, 4000);
+        }
+
+        document.getElementById('mobile-menu-btn').addEventListener('click', () => {
+            document.getElementById('mobile-menu').classList.toggle('hidden');
+        });
+
+        window.onload = function() {
+            renderGallery();
+        };
+    </script>
+</body>
+</html>
